@@ -141,9 +141,9 @@ var hotels = [
         "id": "4944702",
         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Conrad-Macao-Cotai-Central.h4944702.Hotel-Information"
     },
-    {
-        "name": "Four Seasons Macao at Cotai Strip"
-    },
+    // {
+    //     "name": "Four Seasons Macao at Cotai Strip"
+    // },
     {
         "name": "Galaxy Macau",
         "id": "4359010",
