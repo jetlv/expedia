@@ -5,6 +5,28 @@ var async = require('async');
 var ew = require('node-xlsx');
 var cheerio = require('cheerio');
 
+/**
+ * Date extension
+ */
+Date.prototype.Format = function (fmt) {
+    var o = {
+        "M+": this.getMonth() + 1,
+        "d+": this.getDate(),
+        "h+": this.getHours(),
+        "m+": this.getMinutes(),
+        "s+": this.getSeconds(),
+        "q+": Math.floor((this.getMonth() + 3) / 3),
+        "S": this.getMilliseconds()
+    };
+    if (/(y+)/.test(fmt))
+        fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+    for (var k in o)
+        if (new RegExp("(" + k + ")").test(fmt))
+            fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+    return fmt;
+}
+
+
 /** define file name */
 const filePath = "expedia.xlsx";
 /**
@@ -12,10 +34,11 @@ const filePath = "expedia.xlsx";
  */
 var sheet;
 if (fs.existsSync(filePath)) {
-    fs.createReadStream(filePath).pipe(fs.createWriteStream('backup.xlsx'));
+    var backupfile = new Date().Format('yyyyMMdd') + '.xlsx';
+    fs.createReadStream(filePath).pipe(fs.createWriteStream(backupfile));
     sheet = ew.parse(fs.readFileSync(filePath))[0];
 } else {
-    var columns = ["DATE_EXTRACT", "HOTEL_ID", "HOTEL_NAME", "H_EXPRAT", "H_CAT", "H_LOC", "ROOMTYPE_ID", "ROOMTYPE", "RATEPLAN", "RATE_CAT", "RATE_NAME", "BEDTYPE", "ROOM_SIZE", "RATE_T0", "RATE_T7", "RATE_T14", "RATE_T28", "RATE_T56", "RATE_T102"];
+    var columns = ["DATE_EXTRACT", "HOTEL_ID", "HOTEL_NAME", "H_EXPRAT", "H_REC", "H_CAT", "H_LOC", "ROOMTYPE_ID", "ROOMTYPE", "RATEPLAN", "RATE_CAT", "RATE_NAME", "BEDTYPE", "ROOM_SIZE", "RATE_T0", "RATE_T7", "RATE_T14", "RATE_T28", "RATE_T56", "RATE_T102"];
     sheet = { name: 'result', data: [] };
     sheet.data.push(columns);
 }
@@ -136,7 +159,7 @@ var hotels = [
     {
         "name": "City of Dreams-Crown Towers Macau",
         "id": "2871315",
-        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-City-Of-Dreams-Crown-Towers-Macau.h2871315"
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-City-Of-Dreams-Crown-Towers-Macau.h2871315.Hotel-Information"
     },
     {
         "name": "Conrad Macao Cotai Central",
@@ -146,7 +169,7 @@ var hotels = [
     {
         "name": "Four Seasons Macao at Cotai Strip",
         "id": "2363104",
-        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Four-Seasons-Hotel-Macao-At-Cotai-Strip.h2363104"
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Four-Seasons-Hotel-Macao-At-Cotai-Strip.h2363104.Hotel-Information"
     },
     {
         "name": "Galaxy Macau",
@@ -176,12 +199,12 @@ var hotels = [
     {
         "name": "Holiday Inn Macau Cotai Central",
         "id": "4894016",
-        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Holiday-Inn-Macao-Cotai-Central.h4894016"
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Holiday-Inn-Macao-Cotai-Central.h4894016.Hotel-Information"
     },
     {
         "name": "Hotel Okura Macau",
         "id": "4346833",
-        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Hotel-Okura-Macau.h4346833"
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Hotel-Okura-Macau.h4346833.Hotel-Information"
     },
     {
         "name": "JW Marriott Hotel Macau",
@@ -228,12 +251,12 @@ var hotels = [
         "name": "Wynn Macau",
         "id": "1503945",
         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Macau.h1503945.Hotel-Information"
-    },
-    {
-        "name": "Wynn Palace", //not open yet
-        "id": "15935917",
-        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Palace.h15935917"
     }
+    // {
+    //     "name": "Wynn Palace", //not open yet
+    //     "id": "15935917",
+    //     "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Palace.h15935917.Hotel-Information"
+    // }
 ];
 
 
@@ -292,7 +315,7 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                 setTimeout(function () {
                     console.log('offset ' + offset + ' was fetched');
                     callback();
-                }, 2000);
+                }, 3000);
             });
         }, function (err) {
             if (err) console.log(err);
@@ -306,14 +329,15 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                     console.log(offset + ' - ' + key);
                     if (keys.indexOf(key) == -1) {
                         var date = new Date(ckin + ' 08:00:00');
-                        var hotelID = parseInt(hotel.id);
+                        var hotelID = parseFloat(hotel.id);
                         var hotelName = hotel.name;
                         var $ = cheerio.load(hbody);
-                        var hotelRate = parseInt($('.rating-number').text());
+                        var hotelRate = parseFloat($('.rating-number').text());
+                        var hotelRec = $('.recommend-percentage').text().trim();
                         var hcat = ($('#license-plate .visuallyhidden').text().match(/[\d\.]+/)[0] + ' Stars').replace(/\.0/g, '');
                         var hloc = $('.street-address').eq(0).text() + ', ' + $('.city').eq(0).text();
-                        var roomTypeCode = parseInt(entity.roomTypeCode);
-                        var ratePlanCode = parseInt(entity.ratePlanCode);
+                        var roomTypeCode = parseFloat(entity.roomTypeCode);
+                        var ratePlanCode = parseFloat(entity.ratePlanCode);
                         var rateCatArray = [];
                         for (var cat in entity.amenities) {
                             rateCatArray.push(entity.amenities[cat]);
@@ -326,22 +350,23 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                         var bedtype = '';
                         var roomSize = '';
                         rateAndPlan.rooms.forEach(function (item, index, array) {
-                            if (item.roomTypeCode === roomTypeCode) {
+                            if (parseFloat(item.roomTypeCode) === roomTypeCode) {
                                 bedtype = item.beddingOptions.join(',').trim();
                                 roomSize = item.roomSquareMeters;
                             }
                         });
                         var t = '';
                         if (!entity.price) {
-                            t = 'N/A';
+                            t = 'soldout';
                         } else {
-                            t = entity.price.displayPrice;
+                            t = parseFloat(entity.price.displayPrice.replace(/[HK$,]+/g, ''));
                         }
                         var row = [];
                         row.push(date);
                         row.push(hotelID);
                         row.push(hotelName);
                         row.push(hotelRate);
+                        row.push(hotelRec);
                         row.push(hcat);
                         row.push(hloc);
                         row.push(roomTypeCode);
@@ -351,11 +376,11 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                         row.push(rateName);
                         row.push(bedtype);
                         row.push(roomSize);
-                        row[13 + offsets.indexOf(offset)] = t;
-                        [0,1,2,3,4,5].forEach(function(v, i, a) {
+                        [0, 1, 2, 3, 4, 5].forEach(function (v, i, a) {
                             //set 'N/A' as default value, aviod empty cell
                             row.push('N/A');
                         });
+                        row[13 + offsets.indexOf(offset)] = t;
                         keys.push(key);
                         singleRows.push({
                             "key": key,
@@ -366,9 +391,9 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                             if (sr.key === key) {
                                 var t = '';
                                 if (!entity.price) {
-                                    t = 'N/A';
+                                    t = 'soldout';
                                 } else {
-                                    t = entity.price.displayPrice;
+                                    t = parseFloat(entity.price.displayPrice.replace(/[HK$,]+/g, ''));
                                 }
                                 sr.rs[13 + offsets.indexOf(offset)] = t;
                             }
@@ -398,26 +423,6 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
 }
 
 
-/**
- * Date extension
- */
-Date.prototype.Format = function (fmt) {
-    var o = {
-        "M+": this.getMonth() + 1,
-        "d+": this.getDate(),
-        "h+": this.getHours(),
-        "m+": this.getMinutes(),
-        "s+": this.getSeconds(),
-        "q+": Math.floor((this.getMonth() + 3) / 3),
-        "S": this.getMilliseconds()
-    };
-    if (/(y+)/.test(fmt))
-        fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
-    for (var k in o)
-        if (new RegExp("(" + k + ")").test(fmt))
-            fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
-    return fmt;
-}
 
 function urlComposer(choosenOffset) {
     var params = '#adults=1&children=0';
@@ -438,12 +443,12 @@ function run() {
     console.log('Task started ' + new Date())
     var chkin = urlComposer(0).chkin;
     var chkout = urlComposer(0).chkout;
-    var test = [{
-        "name": "Altira Macau",
-        "id": "10091860",
-        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Altira-Macau.h10091860.Hotel-Information"
-    }];
-    async.mapLimit(/** hotels */ test, 1, function (hotel, callback) {
+    // var test = [{
+    //     "name": "Four Seasons Macao at Cotai Strip",
+    //     "id": "2363104",
+    //     "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Four-Seasons-Hotel-Macao-At-Cotai-Strip.h2363104.Hotel-Information"
+    // }];
+    async.mapLimit(hotels, 1, function (hotel, callback) {
         fetchRate(chkin, chkout, hotel, callback);
     }, function (err) {
         if (err) console.log(err);
@@ -455,3 +460,4 @@ function run() {
 
 run();
 // setInterval(run, 1000 * 60 * 60 * 24);
+
