@@ -134,9 +134,9 @@ var hotels = [
         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Broadway-Macau.h10106413.Hotel-Information"
     },
     {
-        "name" : "City of Dreams-Crown Towers Macau",
-        "id" : "2871315",
-        "baseUrl" : "https://www.expedia.com.hk/en/Macau-Hotels-City-Of-Dreams-Crown-Towers-Macau.h2871315"
+        "name": "City of Dreams-Crown Towers Macau",
+        "id": "2871315",
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-City-Of-Dreams-Crown-Towers-Macau.h2871315"
     },
     {
         "name": "Conrad Macao Cotai Central",
@@ -145,8 +145,8 @@ var hotels = [
     },
     {
         "name": "Four Seasons Macao at Cotai Strip",
-        "id" : "2363104",
-        "baseUrl" : "https://www.expedia.com.hk/en/Macau-Hotels-Four-Seasons-Hotel-Macao-At-Cotai-Strip.h2363104"
+        "id": "2363104",
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Four-Seasons-Hotel-Macao-At-Cotai-Strip.h2363104"
     },
     {
         "name": "Galaxy Macau",
@@ -174,14 +174,14 @@ var hotels = [
         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Hard-Rock-Hotel.h2759501.Hotel-Information"
     },
     {
-        "name" : "Holiday Inn Macau Cotai Central",
-        "id" : "4894016",
-        "baseUrl" : "https://www.expedia.com.hk/en/Macau-Hotels-Holiday-Inn-Macao-Cotai-Central.h4894016"
+        "name": "Holiday Inn Macau Cotai Central",
+        "id": "4894016",
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Holiday-Inn-Macao-Cotai-Central.h4894016"
     },
     {
-        "name" : "Hotel Okura Macau",
-        "id" : "4346833",
-        "baseUrl" : "https://www.expedia.com.hk/en/Macau-Hotels-Hotel-Okura-Macau.h4346833"
+        "name": "Hotel Okura Macau",
+        "id": "4346833",
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Hotel-Okura-Macau.h4346833"
     },
     {
         "name": "JW Marriott Hotel Macau",
@@ -230,9 +230,9 @@ var hotels = [
         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Macau.h1503945.Hotel-Information"
     },
     {
-        "name" : "Wynn Palace", //not open yet
-        "id" : "15935917",
-        "baseUrl" : "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Palace.h15935917"
+        "name": "Wynn Palace", //not open yet
+        "id": "15935917",
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Palace.h15935917"
     }
 ];
 
@@ -247,138 +247,153 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
             badRow.push(hotel.id);
             badRow.push(hotel.name);
             badRow.push("Unexpected error, no response : " + err ? err : "");
+            rows.push(badRow);
             outerCallback();
             return;
         }
         var cookie = __getSessions(resp);
         var token = hbody.match(/infosite\.token =.*/g)[0].match(/=.*/g)[0].replace(/[=\;']/g, '').trim();
-        var har = composeHar(hotelId, ckin, ckout, cookie, token);
 
-        request({ har: har, gzip: true }, function (err, resp, body) {
-            var offers = JSON.parse(body).offers;
-            if (!resp) {
-                var badRow = [];
-                badRow.push(new Date(ckin + ' 08:00:00'));
-                badRow.push(hotel.id);
-                badRow.push(hotel.name);
-                badRow.push("Unexpected error, no response : " + err ? err : "");
-                outerCallback();
-                return;
-            }
-            if (!offers) {
-                var badRow = [];
-                badRow.push(new Date(ckin + ' 08:00:00'));
-                badRow.push(hotel.id);
-                badRow.push(hotel.name);
-                badRow.push("This hotel has no available room today!");
-                outerCallback();
-                return;
-            }
-            offers.forEach(function (h, index, array) {
-                var date = new Date(ckin + ' 08:00:00');
-                var hotelID = h.hotelID;
-                var hotelName = hotel.name;
-                var $ = cheerio.load(hbody);
-                var hotelRate = $('.rating-number').text();
-                var hcat = $('#license-plate .visuallyhidden').text().match(/[\d\.]+/)[0] + '-Stars';
-                var hloc = $('.street-address').eq(0).text() + ', ' + $('.city').eq(0).text();
-                var roomTypeCode = h.roomTypeCode;
-                var ratePlanCode = h.ratePlanCode;
-                var rateCatArray = [];
-                for (var cat in h.amenities) {
-                    rateCatArray.push(h.amenities[cat]);
+        var entities = [];
+        var offsets = [0, 7, 14, 28, 56, 102];
+        async.mapLimit(offsets, 1, function (offset, callback) {
+            var thar = composeHar(hotelId, urlComposer(offset).chkin, urlComposer(offset).chkout, cookie, token);
+            var offsetEntity;
+            request({ har: thar, gzip: true }, function (err, resp, ibody) {
+                try {
+                    var iOffers = JSON.parse(ibody).offers;
+                } catch (err) {
+                    setTimeout(function () {
+                        offsetEntity = {
+                            "offset": offset,
+                            "offers": []
+                        }
+                        entities.push(offsetEntity);
+                        callback();
+                    }, 7000);
+                    return;
                 }
-                var rateCat = rateCatArray.join(',');
-                var rateName = h.nonRefundableInsideWindow ? "NONREF" : "REFUND";
-                var roomName = h.roomName;
-                var rateStr = hbody.match('\\{"rooms":\\[.*"ratePlans":.*\\}')[0];
-                var rateAndPlan = JSON.parse(rateStr);
-                var bedtype = '';
-                var roomSize = '';
-                rateAndPlan.rooms.forEach(function (item, index, array) {
-                    if (item.roomTypeCode === roomTypeCode) {
-                        bedtype = item.beddingOptions.join(',').trim();
-                        roomSize = item.roomSquareMeters;
+                if (!iOffers) {
+                    offsetEntity = {
+                        "offset": offset,
+                        "offers": []
+                    }
+                    entities.push(offsetEntity);
+                    setTimeout(function () {
+                        callback();
+                    }, 7000);
+                    return;
+                }
+                offsetEntity = {
+                    "offset": offset,
+                    "offers": iOffers
+                }
+                entities.push(offsetEntity);
+                setTimeout(function () {
+                    console.log('offset ' + offset + ' was fetched');
+                    callback();
+                }, 2000);
+            });
+        }, function (err) {
+            if (err) console.log(err);
+            // fs.writeFileSync('entities.json', JSON.stringify(entities));
+            var keys = [];
+            var singleRows = [];
+            entities.forEach(function (offsetEntity, index, array) {
+                offsetEntity.offers.forEach(function (entity, index, array) {
+                    var offset = offsetEntity.offset;
+                    var key = getKeyOfOffer(entity);
+                    console.log(offset + ' - ' + key);
+                    if (keys.indexOf(key) == -1) {
+                        var date = new Date(ckin + ' 08:00:00');
+                        var hotelID = parseInt(hotel.id);
+                        var hotelName = hotel.name;
+                        var $ = cheerio.load(hbody);
+                        var hotelRate = parseInt($('.rating-number').text());
+                        var hcat = ($('#license-plate .visuallyhidden').text().match(/[\d\.]+/)[0] + ' Stars').replace(/\.0/g, '');
+                        var hloc = $('.street-address').eq(0).text() + ', ' + $('.city').eq(0).text();
+                        var roomTypeCode = parseInt(entity.roomTypeCode);
+                        var ratePlanCode = parseInt(entity.ratePlanCode);
+                        var rateCatArray = [];
+                        for (var cat in entity.amenities) {
+                            rateCatArray.push(entity.amenities[cat]);
+                        }
+                        var rateCat = rateCatArray.join(',');
+                        var rateName = entity.freeCancellable ? "REFUND" : "NONREF";
+                        var roomName = entity.roomName;
+                        var rateStr = hbody.match('\\{"rooms":\\[.*"ratePlans":.*\\}')[0];
+                        var rateAndPlan = JSON.parse(rateStr);
+                        var bedtype = '';
+                        var roomSize = '';
+                        rateAndPlan.rooms.forEach(function (item, index, array) {
+                            if (item.roomTypeCode === roomTypeCode) {
+                                bedtype = item.beddingOptions.join(',').trim();
+                                roomSize = item.roomSquareMeters;
+                            }
+                        });
+                        var t = '';
+                        if (!entity.price) {
+                            t = 'N/A';
+                        } else {
+                            t = entity.price.displayPrice;
+                        }
+                        var row = [];
+                        row.push(date);
+                        row.push(hotelID);
+                        row.push(hotelName);
+                        row.push(hotelRate);
+                        row.push(hcat);
+                        row.push(hloc);
+                        row.push(roomTypeCode);
+                        row.push(roomName);
+                        row.push(ratePlanCode);
+                        row.push(rateCat);
+                        row.push(rateName);
+                        row.push(bedtype);
+                        row.push(roomSize);
+                        row[13 + offsets.indexOf(offset)] = t;
+                        [0,1,2,3,4,5].forEach(function(v, i, a) {
+                            //set 'N/A' as default value, aviod empty cell
+                            row.push('N/A');
+                        });
+                        keys.push(key);
+                        singleRows.push({
+                            "key": key,
+                            "rs": row
+                        });
+                    } else {
+                        singleRows.forEach(function (sr, index, array) {
+                            if (sr.key === key) {
+                                var t = '';
+                                if (!entity.price) {
+                                    t = 'N/A';
+                                } else {
+                                    t = entity.price.displayPrice;
+                                }
+                                sr.rs[13 + offsets.indexOf(offset)] = t;
+                            }
+                        });
                     }
                 });
-                var t0 = '';
-                if (!h.price) {
-                    t0 = 'N/A';
-                } else {
-                    t0 = h.price.displayPrice;
-                }
-                var row = [];
-                row.push(date);
-                row.push(hotelID);
-                row.push(hotelName);
-                row.push(hotelRate);
-                row.push(hcat);
-                row.push(hloc);
-                row.push(roomTypeCode);
-                row.push(roomName);
-                row.push(ratePlanCode);
-                row.push(rateCat);
-                row.push(rateName);
-                row.push(bedtype);
-                row.push(roomSize);
-                row.push(t0);
-
-                offsets = [7, 14, 28, 56, 102];
-                setTimeout(function () {
-                    async.mapLimit(offsets, 1, function (offset, callback) {
-                        var thar = composeHar(hotelId, urlComposer(offset).chkin, urlComposer(offset).chkout, cookie, token);
-                        request({ har: thar, gzip: true }, function (err, resp, ibody) {
-                            try {
-                                var iOffers = JSON.parse(ibody).offers;
-                            } catch (err) {
-                                row.push('N/A');
-                                setTimeout(function () {
-                                    callback();
-                                }, 7000);
-                                return;
-                            }
-                            if (!iOffers) {
-                                row.push('N/A');
-                                setTimeout(function () {
-                                    callback();
-                                }, 7000);
-                                return;
-                            }
-                            var flag = false;
-                            iOffers.forEach(function (ih, index, array) {
-                                if ((ih.roomTypeCode == roomTypeCode) && (ih.ratePlanCode == ratePlanCode) && (!flag)) {
-                                    flag = true;
-                                    if (!ih.price) {
-                                        var tn = 'N/A';
-                                        row.push(tn);
-                                    } else {
-                                        var tn = ih.price.displayPrice;
-                                        row.push(tn)
-                                    }
-                                }
-                            });
-                            if (!flag) {
-                                row.push('N/A');
-                            }
-                            setTimeout(function () {
-                                console.log('offset ' + offset + ' was done');
-                                callback();
-                            }, 7000);
-                        });
-                    }, function (err) {
-                        rows.push(row);
-                        if (index == array.length - 1) {
-                            setTimeout(function () {
-                                console.log(hotel.name + ' was done');
-                                var buffer = ew.build([sheet]);
-                                fs.writeFileSync(filePath, buffer);
-                                outerCallback();
-                            }, 2000);
-                        }
-                    });
-                }, index * 4 * 1000);
             });
+
+            singleRows.forEach(function (item, index, value) {
+                rows.push(item.rs);
+            });
+
+            setTimeout(function () {
+                console.log(hotel.name + ' was done');
+                var buffer = ew.build([sheet]);
+                fs.writeFileSync(filePath, buffer);
+                outerCallback();
+            }, 2000);
         });
+
+
+
+        function getKeyOfOffer(offer) {
+            return offer.hotelID + offer.roomTypeCode + offer.ratePlanCode + (offer.freeCancellable ? "refund" : "nonref");
+        }
     });
 }
 
@@ -423,7 +438,12 @@ function run() {
     console.log('Task started ' + new Date())
     var chkin = urlComposer(0).chkin;
     var chkout = urlComposer(0).chkout;
-    async.mapLimit(hotels, 1, function (hotel, callback) {
+    var test = [{
+        "name": "Altira Macau",
+        "id": "10091860",
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Altira-Macau.h10091860.Hotel-Information"
+    }];
+    async.mapLimit(/** hotels */ test, 1, function (hotel, callback) {
         fetchRate(chkin, chkout, hotel, callback);
     }, function (err) {
         if (err) console.log(err);
@@ -434,4 +454,4 @@ function run() {
 }
 
 run();
-setInterval(run, 1000 * 60 * 60 * 24);
+// setInterval(run, 1000 * 60 * 60 * 24);
