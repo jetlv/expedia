@@ -27,23 +27,37 @@ Date.prototype.Format = function (fmt) {
 }
 
 
+
 /** define file name */
-const filePath = "expedia.xlsx";
+const filePath = "Consolidated.xlsx";
+const backupFilePath = "Backup.xlsx";
+
+if(!fs.existsSync('Daily/')) {
+    fs.mkdir('Daily');
+}
+const dailyFilePath = "Daily/" + new Date().Format('yyyyMMdd') + '.xlsx';
 /**
  * excel prepration
  */
 var sheet;
+var columns = ["DATE_STRING", "DATE_EXTRACT", "HOTEL_ID", "HOTEL_NAME", "H_EXPRAT", "H_REC", "H_CAT", "H_LOC", "ROOMTYPE_ID", "ROOMTYPE", "RATEPLAN", "RATE_CAT", "RATE_NAME", "BEDTYPE", "ROOM_SIZE", "RATE_T0", "RATE_T7", "RATE_T14", "RATE_T28", "RATE_T56", "RATE_T102"];
 if (fs.existsSync(filePath)) {
-    var backupfile = new Date().Format('yyyyMMdd') + '.xlsx';
-    fs.createReadStream(filePath).pipe(fs.createWriteStream(backupfile));
+    fs.createReadStream(filePath).pipe(fs.createWriteStream(backupFilePath));
     sheet = ew.parse(fs.readFileSync(filePath))[0];
+    sheet.data.forEach(function(row, index, array) {
+        if(index !== 0) {
+            /** due to buggy xlsx framework, recount the date */
+            // row[0] = new Date(parseFloat(row[0]) * 24 * 60 * 60 * 1000 - (new Date(new Date().getFullYear() + 70, 0 ,0, 0, 0,0,0).getMilliseconds() - new Date().getMilliseconds()));
+            row[1] = new Date(row[0] + ' 08:00:00')
+        }   
+    });
 } else {
-    var columns = ["DATE_EXTRACT", "HOTEL_ID", "HOTEL_NAME", "H_EXPRAT", "H_REC", "H_CAT", "H_LOC", "ROOMTYPE_ID", "ROOMTYPE", "RATEPLAN", "RATE_CAT", "RATE_NAME", "BEDTYPE", "ROOM_SIZE", "RATE_T0", "RATE_T7", "RATE_T14", "RATE_T28", "RATE_T56", "RATE_T102"];
     sheet = { name: 'result', data: [] };
     sheet.data.push(columns);
 }
 
-var rows = sheet.data;
+// var origin = sheet.data;
+var rows = [];
 
 
 function composeHar(hotelId, chkin, chkout, cookie, token) {
@@ -259,6 +273,11 @@ var hotels = [
     // }
 ];
 
+// var hotels = [{
+//         "name": "Altira Macau",
+//         "id": "10091860",
+//         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Altira-Macau.h10091860.Hotel-Information"
+//     }];
 
 function fetchRate(ckin, ckout, hotel, outerCallback) {
     var hotelUrl = hotel.baseUrl;
@@ -326,8 +345,9 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                 offsetEntity.offers.forEach(function (entity, index, array) {
                     var offset = offsetEntity.offset;
                     var key = getKeyOfOffer(entity);
-                    console.log(offset + ' - ' + key);
+                    // console.log(offset + ' - ' + key);
                     if (keys.indexOf(key) == -1) {
+                        var dateStr = ckin;
                         var date = new Date(ckin + ' 08:00:00');
                         var hotelID = parseFloat(hotel.id);
                         var hotelName = hotel.name;
@@ -362,6 +382,7 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                             t = parseFloat(entity.price.displayPrice.replace(/[HK$,]+/g, ''));
                         }
                         var row = [];
+                        row.push(dateStr);
                         row.push(date);
                         row.push(hotelID);
                         row.push(hotelName);
@@ -452,12 +473,22 @@ function run() {
         fetchRate(chkin, chkout, hotel, callback);
     }, function (err) {
         if (err) console.log(err);
-        var buffer = ew.build([sheet]);
-        fs.writeFileSync(filePath, buffer);
+        sheet.data = sheet.data.concat(rows);
+        var conBuffer = ew.build([sheet]);
+        fs.writeFileSync(filePath, conBuffer);
+        rows.unshift(columns);
+        // console.log(rows.length);
+        // rows = rows);
+        var dailyBuffer = ew.build([{name : 'result', data : rows}]);
+        fs.writeFileSync(dailyFilePath, dailyBuffer);
         console.log('Everything was done');
     });
 }
 
+process.on('exit', function() {
+    setInterval(function(){console.log('Keeping cmd timieout')}, 1000 * 60 * 60 * 240);
+});
+
 run();
-// setInterval(run, 1000 * 60 * 60 * 24);
+setInterval(function(){console.log('Keeping cmd timieout')}, 1000 * 60 * 60 * 240);
 
