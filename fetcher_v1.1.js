@@ -274,10 +274,15 @@ var hotels = [
 ];
 
 // var hotels = [{
-//         "name": "Altira Macau",
-//         "id": "10091860",
-//         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Altira-Macau.h10091860.Hotel-Information"
-//     }];
+    //     "name": "Altira Macau",
+    //     "id": "10091860",
+    //     "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Altira-Macau.h10091860.Hotel-Information"
+    // },
+    // {
+    //     "name": "Banyan Tree Macau",
+    //     "id": "4282350",
+    //     "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Banyan-Tree-Macau.h4282350.Hotel-Information"
+    // }];
 
 function fetchRate(ckin, ckout, hotel, outerCallback) {
     var hotelUrl = hotel.baseUrl;
@@ -353,7 +358,7 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                         var hotelName = hotel.name;
                         var $ = cheerio.load(hbody);
                         var hotelRate = parseFloat($('.rating-number').text());
-                        var hotelRec = $('.recommend-percentage').text().trim();
+                        var hotelRec = parseFloat($('.recommend-percentage').text().trim()) / 100;
                         var hcat = ($('#license-plate .visuallyhidden').text().match(/[\d\.]+/)[0] + ' Stars').replace(/\.0/g, '');
                         var hloc = $('.street-address').eq(0).text() + ', ' + $('.city').eq(0).text();
                         var roomTypeCode = parseFloat(entity.roomTypeCode);
@@ -401,7 +406,7 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                             //set 'N/A' as default value, aviod empty cell
                             row.push('N/A');
                         });
-                        row[13 + offsets.indexOf(offset)] = t;
+                        row[15 + offsets.indexOf(offset)] = t;
                         keys.push(key);
                         singleRows.push({
                             "key": key,
@@ -416,7 +421,7 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                                 } else {
                                     t = parseFloat(entity.price.displayPrice.replace(/[HK$,]+/g, ''));
                                 }
-                                sr.rs[13 + offsets.indexOf(offset)] = t;
+                                sr.rs[15 + offsets.indexOf(offset)] = t;
                             }
                         });
                     }
