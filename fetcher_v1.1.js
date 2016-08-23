@@ -265,24 +265,24 @@ var hotels = [
         "name": "Wynn Macau",
         "id": "1503945",
         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Macau.h1503945.Hotel-Information"
+    },
+    {
+        "name": "Wynn Palace",
+        "id": "15935917",
+        "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Palace.h15935917.Hotel-Information"
     }
-    // {
-    //     "name": "Wynn Palace", //not open yet
-    //     "id": "15935917",
-    //     "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Palace.h15935917.Hotel-Information"
-    // }
 ];
 
 // var hotels = [{
-    //     "name": "Altira Macau",
-    //     "id": "10091860",
-    //     "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Altira-Macau.h10091860.Hotel-Information"
-    // },
-    // {
-    //     "name": "Banyan Tree Macau",
-    //     "id": "4282350",
-    //     "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Banyan-Tree-Macau.h4282350.Hotel-Information"
-    // }];
+//         "name": "Altira Macau",
+//         "id": "10091860",
+//         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Altira-Macau.h10091860.Hotel-Information"
+//     },
+//     {
+//         "name": "Wynn Palace",
+//         "id": "15935917",
+//         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Palace.h15935917.Hotel-Information"
+//     }];
 
 function fetchRate(ckin, ckout, hotel, outerCallback) {
     var hotelUrl = hotel.baseUrl;
@@ -357,8 +357,8 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                         var hotelID = parseFloat(hotel.id);
                         var hotelName = hotel.name;
                         var $ = cheerio.load(hbody);
-                        var hotelRate = parseFloat($('.rating-number').text());
-                        var hotelRec = parseFloat($('.recommend-percentage').text().trim()) / 100;
+                        var hotelRate = $('.rating-number').text() ? parseFloat($('.rating-number').text()) : 'N/A';
+                        var hotelRec = $('.recommend-percentage').text() ? parseFloat($('.recommend-percentage').text().trim()) / 100 : 'N/A';
                         var hcat = ($('#license-plate .visuallyhidden').text().match(/[\d\.]+/)[0] + ' Stars').replace(/\.0/g, '');
                         var hloc = $('.street-address').eq(0).text() + ', ' + $('.city').eq(0).text();
                         var roomTypeCode = parseFloat(entity.roomTypeCode);
@@ -377,7 +377,7 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
                         rateAndPlan.rooms.forEach(function (item, index, array) {
                             if (parseFloat(item.roomTypeCode) === roomTypeCode) {
                                 bedtype = item.beddingOptions.join(',').trim();
-                                roomSize = item.roomSquareMeters;
+                                roomSize = (item.roomSquareMeters && item.roomSquareMeters !== '') ? parseFloat(item.roomSquareMeters) : '';
                             }
                         });
                         var t = '';
