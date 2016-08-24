@@ -270,6 +270,11 @@ var hotels = [
         "name": "Wynn Palace",
         "id": "15935917",
         "baseUrl": "https://www.expedia.com.hk/en/Macau-Hotels-Wynn-Palace.h15935917.Hotel-Information"
+    },
+    {
+        "name" : "Sheraton Grand Macao Hotel",
+        "id" : "5171820",
+        "baseUrl" : "https://www.expedia.com.hk/en/Macau-Hotels-Sheraton-Grand-Macao-Hotel.h5171820.Hotel-Information"
     }
 ];
 
