@@ -40,7 +40,7 @@ const dailyFilePath = "Daily/" + new Date().Format('yyyyMMdd') + '.xlsx';
  * excel prepration
  */
 var sheet;
-var columns = ["DATE_STRING", "DATE_EXTRACT", "HOTEL_ID", "HOTEL_NAME", "H_EXPRAT", "H_REC", "H_CAT", "H_LOC", "ROOMTYPE_ID", "ROOMTYPE", "RATEPLAN", "RATE_CAT", "RATE_NAME", "BEDTYPE", "ROOM_SIZE", "RATE_T0", "RATE_T7", "RATE_T14", "RATE_T28", "RATE_T56", "RATE_T102"];
+var columns = ["DATE_STRING", "DATE_EXTRACT", "HOTEL_ID", "HOTEL_NAME", "H_EXPRAT", "H_REC", "H_CAT", "H_LOC", "ROOMTYPE_ID", "ROOMTYPE", "RATEPLAN", "RATE_CAT", "RATE_NAME", "BEDTYPE", "ROOM_SIZE", "RATE_T0", "RATE_T7", "RATE_T14", "RATE_T28", "RATE_T56", "RATE_T112"];
 if (fs.existsSync(filePath)) {
     fs.createReadStream(filePath).pipe(fs.createWriteStream(backupFilePath));
     sheet = ew.parse(fs.readFileSync(filePath))[0];
@@ -307,7 +307,7 @@ function fetchRate(ckin, ckout, hotel, outerCallback) {
         var token = hbody.match(/infosite\.token =.*/g)[0].match(/=.*/g)[0].replace(/[=\;']/g, '').trim();
 
         var entities = [];
-        var offsets = [0, 7, 14, 28, 56, 102];
+        var offsets = [0, 7, 14, 28, 56, 112];
         async.mapLimit(offsets, 1, function (offset, callback) {
             var thar = composeHar(hotelId, urlComposer(offset).chkin, urlComposer(offset).chkout, cookie, token);
             var offsetEntity;
